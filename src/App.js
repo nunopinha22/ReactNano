@@ -78,7 +78,6 @@ class App extends Component {
         <h1>{helloWorld}</h1>
         <h2 className="App-title">{user.name}</h2>
         <br />
-        <br />
 
         <form>
           <input
