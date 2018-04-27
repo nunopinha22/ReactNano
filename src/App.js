@@ -87,7 +87,7 @@ class App extends Component {
             onChange={this.onSearchChange}
           />
         </form> 
-        
+        <br />
 
         {list.filter(this.isSearched(searchTerm)).map(item =>
           <div key={item.objectID}>
