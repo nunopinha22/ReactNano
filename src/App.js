@@ -86,8 +86,8 @@ class App extends Component {
             ref={(input) => { this.nameInput = input; }}
             onChange={this.onSearchChange}
           />
-        </form>
-        <br />
+        </form> 
+        
 
         {list.filter(this.isSearched(searchTerm)).map(item =>
           <div key={item.objectID}>
