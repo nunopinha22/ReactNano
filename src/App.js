@@ -2,6 +2,18 @@ import React, { Component } from 'react';
 // import logo from './logo.svg';
 import './App.css';
 
+const DEFAULT_QUERY = '';
+const PATH_BASE = 'https://hn.algolia.com/api/v1';
+const PATH_SEARCH = '/search';
+const PARAM_SEARCH = 'query=';
+
+// ES5
+// var url = PATH_BASE + PATH_SEARCH + '?' + PARAM_SEARCH + DEFAULT_QUERY;
+
+// ES6
+// eslint-disable-next-line
+const url = `${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${DEFAULT_QUERY}`;
+
 const user = {
   id: 1,
   Name: 'Nunex'
@@ -33,27 +45,33 @@ const list = [
   },
 ];
 
-function isSearched(searchTerm) {
-  return function (item) {
-    return item.title.toLowerCase().includes(searchTerm.toLowerCase())
-      || item.author.toLowerCase().includes(searchTerm.toLowerCase());
-  }
+// function isSearched(searchTerm) {
+//   return function (item) {
+//     return item.title.toLowerCase().includes(searchTerm.toLowerCase())
+//   }
+// };
 
-  // const isSearched = searchTerm => item =>
-  //   item.title.toLowerCase().includes(searchTerm.toLowerCase());
-};
+const isSearched = (searchTerm) => item =>
+  item.title.toLowerCase().includes(searchTerm.toLowerCase())
+  || item.author.toLowerCase().includes(searchTerm.toLowerCase());
 
 class App extends Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      list,
-      searchTerm: '',
+      list: list,
+      result: null,
+      searchTerm: DEFAULT_QUERY,
     }
 
+    this.setSearchTopStories = this.setSearchTopStories.bind(this);
     this.onDismiss = this.onDismiss.bind(this);
     this.onSearchChange = this.onSearchChange.bind(this);
+  }
+
+  setSearchTopStories(result) {
+    this.setState({ result });
   }
 
   onSearchChange = (event) => {
@@ -66,10 +84,26 @@ class App extends Component {
     this.setState({ list: updateList });
   }
 
+  componentDidMount() {
+    const { searchTerm } = this.state;
+
+    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}`)
+      .then(response => response.json())
+      .then(result => this.setSearchTopStories(result))
+      .catch(error => error);
+  }
+
   render() {
     console.log("Entrei no render()");
     const helloWorld = 'Welcome to React learn.';
-    const { searchTerm, list } = this.state
+    const { searchTerm, list, result } = this.state
+
+    console.log('result', result);
+
+    // if (result) {
+    //   return null;
+    // }
+
     return (
       <div className="page">
         <div className="interactions">
@@ -109,8 +143,8 @@ const Table = ({ list, pattern, onDismiss }) => {
   const maxlength = {
     width: '40%',
   }
-  return (
 
+  return (
     <div className="table">
       <div className="table-header">
         <span style={maxlength}>
@@ -149,6 +183,7 @@ const Table = ({ list, pattern, onDismiss }) => {
     </div>
   )
 }
+
 const Button = ({ onClick, className, children }) => {
   return (
     <button
