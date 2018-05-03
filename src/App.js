@@ -9,7 +9,6 @@ const PARAM_SEARCH = 'query=';
 
 // ES5
 // var url = PATH_BASE + PATH_SEARCH + '?' + PARAM_SEARCH + DEFAULT_QUERY;
-
 // ES6
 // eslint-disable-next-line
 const url = `${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${DEFAULT_QUERY}`;
@@ -47,13 +46,24 @@ const list = [
 
 // function isSearched(searchTerm) {
 //   return function (item) {
-//     return item.title.toLowerCase().includes(searchTerm.toLowerCase())
+//   console.log("item.title", item.title);
+
+//     if (!item.title) {
+//       return item.title.toLowerCase().includes(searchTerm.toLowerCase())
+//         || item.author.toLowerCase().includes(searchTerm.toLowerCase()) 
+//     }
+//     else{
+//       return item.author.toLowerCase().includes(searchTerm.toLowerCase())      
+//     }
 //   }
 // };
 
 const isSearched = (searchTerm) => item =>
-  item.title.toLowerCase().includes(searchTerm.toLowerCase())
+  (item.title
+    ? item.title.toLowerCase().includes(searchTerm.toLowerCase())
+    : false)
   || item.author.toLowerCase().includes(searchTerm.toLowerCase());
+
 
 class App extends Component {
   constructor(props) {
@@ -71,7 +81,7 @@ class App extends Component {
   }
 
   setSearchTopStories(result) {
-    this.setState({ result });
+    this.setState({ result: result });
   }
 
   onSearchChange = (event) => {
@@ -80,11 +90,16 @@ class App extends Component {
   }
 
   onDismiss = (id) => {
-    const updateList = this.state.list.filter(x => id !== x.objectID);
-    this.setState({ list: updateList });
+    const updateList = this.state.result.hits.filter(x => id !== x.objectID);
+    this.setState({
+      // result: Object.assign({}, this.state.result, { hits: updatedHits })
+      result: { ...this.state.result, hits: updateList }
+    });
   }
 
   componentDidMount() {
+    console.log("Entrei componentDidMount");
+
     const { searchTerm } = this.state;
 
     fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}`)
@@ -94,13 +109,12 @@ class App extends Component {
   }
 
   render() {
-    console.log("Entrei no render()");
     const helloWorld = 'Welcome to React learn.';
+    // eslint-disable-next-line
     const { searchTerm, list, result } = this.state
+    console.log("Entrei no render()", result);
 
-    console.log('result', result);
-
-    // if (result) {
+    // if (!result) {
     //   return null;
     // }
 
@@ -115,13 +129,16 @@ class App extends Component {
             onChange={this.onSearchChange}
           >
             Search text
-        </Search>
+          </Search>
           <br />
-          <Table
-            list={list}
-            pattern={searchTerm}
-            onDismiss={this.onDismiss}
-          />
+          {
+            result &&
+            <Table
+              list={result.hits}
+              pattern={searchTerm}
+              onDismiss={this.onDismiss}
+            />
+          }
         </div>
       </div>
     );
