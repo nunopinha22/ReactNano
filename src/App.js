@@ -3,9 +3,13 @@ import React, { Component } from 'react';
 import './App.css';
 
 const DEFAULT_QUERY = '';
+const DEFAULT_HPP = '10';
+
 const PATH_BASE = 'https://hn.algolia.com/api/v1';
 const PATH_SEARCH = '/search';
 const PARAM_SEARCH = 'query=';
+const PARAM_PAGE = 'page=';
+const PARAM_HPP = 'hitsPerPage=';
 
 // ES5
 // var url = PATH_BASE + PATH_SEARCH + '?' + PARAM_SEARCH + DEFAULT_QUERY;
@@ -44,20 +48,8 @@ const list = [
   },
 ];
 
-// function isSearched(searchTerm) {
-//   return function (item) {
-//   console.log("item.title", item.title);
-
-//     if (!item.title) {
-//       return item.title.toLowerCase().includes(searchTerm.toLowerCase())
-//         || item.author.toLowerCase().includes(searchTerm.toLowerCase()) 
-//     }
-//     else{
-//       return item.author.toLowerCase().includes(searchTerm.toLowerCase())      
-//     }
-//   }
-// };
-
+// User for search in client-side
+// eslint-disable-next-line
 const isSearched = (searchTerm) => item =>
   (item.title
     ? item.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -76,33 +68,64 @@ class App extends Component {
     }
 
     this.setSearchTopStories = this.setSearchTopStories.bind(this);
+    this.fetchSearchTopStories = this.fetchSearchTopStories.bind(this);
     this.onDismiss = this.onDismiss.bind(this);
-    this.onSearchChange = this.onSearchChange.bind(this);
+    this.onSearchTermChange = this.onSearchTermChange.bind(this);
   }
 
   setSearchTopStories(result) {
-    this.setState({ result: result });
+    const { hits, page } = result
+
+    const oldHist = page !== 0
+      ? this.state.result.hits
+      : []
+
+    const updatedHits = [
+      ...oldHist,
+      ...hits
+    ]
+
+    this.setState({
+      result: { hits: updatedHits, page }
+    });
   }
 
-  onSearchChange = (event) => {
+  fetchSearchTopStories = (searchTerm, page = 0, event) => {
+
+    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}&${PARAM_PAGE}${page}&${PARAM_HPP}${DEFAULT_HPP}`)
+      .then(response => response.json())
+      .then(result => this.setSearchTopStories(result))
+      .catch(error => error);
+
+    event.preventDefault();
+  }
+
+  onSearchTermChange = (event) => {
     const updatedValue = event.target.value;
     this.setState({ searchTerm: updatedValue })
   }
 
   onDismiss = (id) => {
-    const updateList = this.state.result.hits.filter(x => id !== x.objectID);
+    const updateList = this.state.result
+      ? this.state.result.hits.filter(x => id !== x.objectID)
+      : this.state.list.filter(x => id !== x.objectID);
+
+    this.state.result &&
+      this.setState({
+        result: { ...this.state.result, hits: updateList }
+      });
+
     this.setState({
       // result: Object.assign({}, this.state.result, { hits: updatedHits })
-      result: { ...this.state.result, hits: updateList }
+      list: updateList
     });
   }
 
   componentDidMount() {
-    console.log("Entrei componentDidMount");
-
     const { searchTerm } = this.state;
-
-    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}`)
+    const page = 0;
+    // fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}`)
+    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}&${PARAM_PAGE}${page}&${PARAM_HPP}${DEFAULT_HPP}`)
       .then(response => response.json())
       .then(result => this.setSearchTopStories(result))
       .catch(error => error);
@@ -110,13 +133,12 @@ class App extends Component {
 
   render() {
     const helloWorld = 'Welcome to React learn.';
-    // eslint-disable-next-line
-    const { searchTerm, list, result } = this.state
-    console.log("Entrei no render()", result);
 
-    // if (!result) {
-    //   return null;
-    // }
+    // eslint-disable-next-line
+    const { list, result, searchTerm } = this.state
+    const page = (result && result.page) || 0;
+
+    console.log("Entrei no render()", this.state);
 
     return (
       <div className="page">
@@ -126,27 +148,39 @@ class App extends Component {
           <br />
           <Search
             value={searchTerm}
-            onChange={this.onSearchChange}
+            onChange={this.onSearchTermChange}
+            onSubmit={(event) => this.fetchSearchTopStories(searchTerm, 0, event)}
           >
             Search text
           </Search>
           <br />
           {
-            result &&
-            <Table
-              list={result.hits}
-              pattern={searchTerm}
-              onDismiss={this.onDismiss}
-            />
+            result
+              ? <Table
+                list={result.hits}
+                onDismiss={this.onDismiss}
+              />
+              : <Table
+                list={list}
+                pattern={searchTerm}
+                onDismiss={this.onDismiss}
+              />
           }
+
+          <div className="interactions">
+            <Button onClick={(event) => this.fetchSearchTopStories(searchTerm, page + 1, event)}>
+              More
+            </Button>
+          </div>
+
         </div>
       </div>
     );
   }
 }
 
-const Search = ({ value, onChange, children }) =>
-  <form>
+const Search = ({ value, onChange, onSubmit, children }) =>
+  <form onSubmit={onSubmit}>
     {children}
     <input
       type="text"
@@ -154,11 +188,20 @@ const Search = ({ value, onChange, children }) =>
       onChange={onChange}
       ref={(input) => { this.nameInput = input; }}
     />
+    <button
+      type="submit"
+      className="button-inline">
+      Submit
+    </button>
   </form>
 
 const Table = ({ list, pattern, onDismiss }) => {
   const maxlength = {
     width: '40%',
+  }
+
+  if (!list) {
+    return null;
   }
 
   return (
@@ -179,7 +222,8 @@ const Table = ({ list, pattern, onDismiss }) => {
         <span style={{ width: '10%' }}>
         </span>
       </div>
-      {list.filter(isSearched(pattern)).map(item =>
+      {/* {list.filter(isSearched(pattern)).map(item => */}
+      {list.map(item =>
         <div key={item.objectID} className="table-row">
           <span style={maxlength}>
             <a href={item.url}>{item.title}</a>
